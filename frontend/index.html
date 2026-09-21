@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+    <title>PDF RAG Q&A</title>
+
+    <!-- Google Fonts: Inter & JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
+
+    <!-- Markdown & Sanitizer -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.6/dist/purify.min.js"></script>
+
+    <!-- MathJax Configuration -->
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']]
+            },
+            svg: {
+                fontCache: 'global'
+            }
+        };
+    </script>
+    <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+            --bg-page: #f8fafc;
+            --bg-card: #ffffff;
+            --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+            --shadow-md: 0 4px 20px -2px rgba(0, 0, 0, 0.08), 0 2px 6px -1px rgba(0, 0, 0, 0.04);
+            --radius-lg: 16px;
+            --radius-md: 10px;
+            --radius-sm: 6px;
+        }
+
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html {
+            scroll-behavior: smooth;
+            width: 100%;
+            max-width: 100%;
+            overflow-x: hidden;
+            -webkit-text-size-adjust: 100%;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            max-width: 100vw;
+            min-height: 100vh;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg-page);
+            color: var(--text-main);
+            overflow-x: hidden;
+            line-height: 1.6;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1040px;
+            margin: 0 auto;
+            padding: clamp(20px, 4vw, 40px) clamp(16px, 3vw, 32px);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            min-width: 0;
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+            padding-bottom: 8px;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .brand-icon {
+            font-size: 32px;
+            line-height: 1;
+            padding: 10px;
+            background: #ffffff;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-color);
+            box-shadow: var(--shadow-sm);
+        }
+
+        h1 {
+            font-size: clamp(22px, 3vw, 28px);
+            font-weight: 700;
+            color: var(--text-main);
+            letter-spacing: -0.02em;
+        }
+
+        .subtitle {
+            color: var(--text-muted);
+            font-size: clamp(13px, 1.5vw, 15px);
+            margin-top: 2px;
+        }
+
+
+        /* Main Chat Card */
+        .chat-box {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: clamp(20px, 3.5vw, 32px);
+            box-shadow: var(--shadow-md);
+            width: 100%;
+            max-width: 100%;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+        }
+
+        /* Textarea Input */
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            width: 100%;
+        }
+
+        textarea {
+            width: 100%;
+            max-width: 100%;
+            min-height: 110px;
+            padding: 16px;
+            font-size: clamp(14px, 1.2vw, 16px);
+            line-height: 1.5;
+            color: var(--text-main);
+            background: #ffffff;
+            border: 1.5px solid var(--border-color);
+            border-radius: var(--radius-md);
+            resize: vertical;
+            font-family: inherit;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+        }
+
+        textarea::placeholder {
+            color: #94a3b8;
+        }
+
+        /* Action Row */
+        .action-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .shortcut-hint {
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        kbd {
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
+            padding: 2px 6px;
+            font-size: 11px;
+            font-family: inherit;
+            color: #475569;
+        }
+
+        button#askButton {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px 28px;
+            font-size: 15px;
+            font-weight: 600;
+            border: none;
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            background: #0f172a;
+            color: #ffffff;
+            transition: all 0.2s ease;
+            box-shadow: var(--shadow-sm);
+        }
+
+        button#askButton:hover:not(:disabled) {
+            background: #1e293b;
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+
+        button#askButton:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        button#askButton:disabled {
+            background: #94a3b8;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* Status Messages */
+        .loading {
+            display: none;
+            align-items: center;
+            gap: 10px;
+            padding: 14px 18px;
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            border-radius: var(--radius-md);
+            color: #1d4ed8;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .loading.active {
+            display: flex;
+        }
+
+        .spinner {
+            width: 18px;
+            height: 18px;
+            border: 2px solid #bfdbfe;
+            border-top-color: #1d4ed8;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .error {
+            display: none;
+            padding: 14px 18px;
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            border-radius: var(--radius-md);
+            color: #b91c1c;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .error.active {
+            display: block;
+        }
+
+        /* Answer Display */
+        .answer {
+            background: #ffffff;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: clamp(18px, 3vw, 26px);
+            box-shadow: var(--shadow-sm);
+            width: 100%;
+            max-width: 100%;
+            min-width: 0;
+            overflow-wrap: break-word;
+            word-break: break-word;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(6px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .answer-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 700;
+            font-size: 16px;
+            color: #0f172a;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 16px;
+        }
+
+        .answer-content {
+            font-size: clamp(14px, 1.1vw, 15.5px);
+            line-height: 1.7;
+            color: #334155;
+            width: 100%;
+            max-width: 100%;
+            min-width: 0;
+        }
+
+        .answer-content h1,
+        .answer-content h2,
+        .answer-content h3 {
+            color: #0f172a;
+            line-height: 1.35;
+            margin-top: 24px;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .answer-content h1 {
+            font-size: clamp(18px, 2.2vw, 22px);
+        }
+
+        .answer-content h2 {
+            font-size: clamp(16px, 1.8vw, 19px);
+        }
+
+        .answer-content h3 {
+            font-size: clamp(15px, 1.5vw, 17px);
+        }
+
+        .answer-content p {
+            margin: 10px 0;
+        }
+
+        .answer-content ul,
+        .answer-content ol {
+            margin: 10px 0 16px;
+            padding-left: 24px;
+        }
+
+        .answer-content li {
+            margin-bottom: 6px;
+        }
+
+        .answer-content hr {
+            margin: 22px 0;
+            border: 0;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .answer-content strong {
+            color: #0f172a;
+            font-weight: 600;
+        }
+
+        .answer-content code {
+            background: #f1f5f9;
+            color: #0f172a;
+            padding: 2px 7px;
+            border-radius: 4px;
+            font-family: 'JetBrains Mono', Consolas, Monaco, monospace;
+            font-size: 0.9em;
+            border: 1px solid #e2e8f0;
+        }
+
+        .answer-content pre {
+            background: #0f172a;
+            color: #f8fafc;
+            padding: 16px 20px;
+            border-radius: var(--radius-md);
+            overflow-x: auto;
+            max-width: 100%;
+            min-width: 0;
+            margin: 16px 0;
+            overscroll-behavior-x: contain;
+            font-family: 'JetBrains Mono', Consolas, Monaco, monospace;
+            font-size: 13.5px;
+            line-height: 1.55;
+        }
+
+        .answer-content pre code {
+            background: transparent;
+            padding: 0;
+            color: inherit;
+            border: none;
+            border-radius: 0;
+            font-size: inherit;
+            white-space: pre;
+        }
+
+        .answer-content blockquote {
+            margin: 14px 0;
+            padding: 10px 16px;
+            border-left: 4px solid var(--primary);
+            background: #f8fafc;
+            border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+            color: #475569;
+            font-style: italic;
+        }
+
+        .answer-content table {
+            width: 100%;
+            max-width: 100%;
+            border-collapse: collapse;
+            margin: 18px 0;
+            display: block;
+            overflow-x: auto;
+            overscroll-behavior-x: contain;
+        }
+
+        .answer-content th,
+        .answer-content td {
+            border: 1px solid var(--border-color);
+            padding: 10px 14px;
+            text-align: left;
+            font-size: 14px;
+        }
+
+        .answer-content th {
+            background: #f8fafc;
+            font-weight: 600;
+        }
+
+        /* MathJax Equations - Isolated Scrollport & Auto-fit */
+        .answer-content mjx-container {
+            max-width: 100% !important;
+            overflow-x: auto !important;
+            overflow-y: hidden !important;
+            padding: 4px 0 !important;
+            overscroll-behavior-x: contain;
+        }
+
+        .answer-content mjx-container[display="true"] {
+            margin: 18px 0 !important;
+            padding: 14px 18px !important;
+            background: #f8fafc;
+            border-radius: var(--radius-md);
+            border: 1px solid #e2e8f0;
+        }
+
+        .answer-content mjx-container svg {
+            max-width: 100% !important;
+            height: auto !important;
+        }
+
+        /* Sources Grid */
+        .sources {
+            margin-top: 24px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            animation: fadeIn 0.4s ease-out;
+        }
+
+        .sources-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: #0f172a;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .source-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+            gap: 12px;
+            margin-top: 6px;
+        }
+
+        .source {
+            background: #f8fafc;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 14px 16px;
+            font-size: 13px;
+            line-height: 1.5;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .source:hover {
+            border-color: #cbd5e1;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .source-badge {
+            display: inline-flex;
+            align-items: center;
+            align-self: flex-start;
+            padding: 2px 8px;
+            background: #e2e8f0;
+            color: #334155;
+            border-radius: 9999px;
+            font-size: 11.5px;
+            font-weight: 600;
+        }
+
+        .source-detail {
+            color: #64748b;
+        }
+
+        .source-detail strong {
+            color: #334155;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+
+        <!-- Header -->
+        <header class="header">
+            <div class="brand">
+                <div class="brand-icon">📄</div>
+                <div>
+                    <h1>PDF RAG Q&A</h1>
+                    <div class="subtitle">Ask questions about your document.</div>
+                </div>
+            </div>
+
+        </header>
+
+        <!-- Main Query Box -->
+        <main class="chat-box">
+
+            <div class="input-group">
+                <textarea id="question"
+                    placeholder="Example: What is positional encoding and why is it needed?"></textarea>
+            </div>
+
+            <div class="action-row">
+                <div class="shortcut-hint">Press <kbd>Ctrl</kbd> + <kbd>Enter</kbd> to submit</div>
+                <button id="askButton" onclick="askQuestion()">
+                    <span>Ask Question</span>
+                    <span>→</span>
+                </button>
+            </div>
+
+            <div id="loading" class="loading">
+                <div class="spinner"></div>
+                <span id="loadingText">Searching document and generating answer...</span>
+            </div>
+
+            <div id="error" class="error"></div>
+
+            <div id="answerContainer"></div>
+
+            <div id="sourcesContainer"></div>
+
+        </main>
+
+    </div>
+
+    <script>
+
+        const API_URL = "http://127.0.0.1:8000";
+
+        // Main Query Function
+        async function askQuestion() {
+            const questionInput = document.getElementById("question");
+            const question = questionInput.value.trim();
+            const button = document.getElementById("askButton");
+            const loading = document.getElementById("loading");
+            const error = document.getElementById("error");
+            const answerContainer = document.getElementById("answerContainer");
+            const sourcesContainer = document.getElementById("sourcesContainer");
+
+            if (!question) {
+                error.textContent = "Please enter a question before submitting.";
+                error.classList.add("active");
+                return;
+            }
+
+            button.disabled = true;
+            loading.classList.add("active");
+            error.classList.remove("active");
+            error.textContent = "";
+            answerContainer.innerHTML = "";
+            sourcesContainer.innerHTML = "";
+
+            loading.scrollIntoView({ behavior: "smooth", block: "nearest" });
+
+            try {
+                const response = await fetch(`${API_URL}/ask`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        query: question
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`API error: ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                // -------------------------------
+                // ANSWER
+                // -------------------------------
+                const renderedAnswer = DOMPurify.sanitize(
+                    marked.parse(data.answer)
+                );
+
+                answerContainer.innerHTML = `
+                    <div class="answer">
+                        <div class="answer-header">
+                            <span>💡</span>
+                            <span>Generated Answer</span>
+                        </div>
+                        <div class="answer-content">
+                            ${renderedAnswer}
+                        </div>
+                    </div>
+                `;
+
+                // Render mathematical equations after the answer is inserted.
+                if (window.MathJax) {
+                    window.MathJax.typesetPromise([
+                        document.getElementById("answerContainer")
+                    ]).catch(function (err) {
+                        console.warn("MathJax rendering failed:", err);
+                    });
+                }
+
+                // -------------------------------
+                // SOURCES
+                // -------------------------------
+                if (Array.isArray(data.sources) && data.sources.length > 0) {
+                    let sourcesHTML = `
+                        <div class="sources">
+                            <div class="sources-title">
+                                <span>📚</span>
+                                <span>Referenced Document Sources (${data.sources.length})</span>
+                            </div>
+                            <div class="source-grid">
+                    `;
+
+                    data.sources.forEach((source, index) => {
+                        const pages = Array.isArray(source.pages)
+                            ? source.pages.join(", ")
+                            : (source.pages ?? "N/A");
+                        const section = Array.isArray(source.section_path)
+                            ? source.section_path.join(" > ")
+                            : (source.section_path ?? "N/A");
+
+                        sourcesHTML += `
+                            <div class="source">
+                                <span class="source-badge">Source ${index + 1}</span>
+                                <div class="source-detail"><strong>Chunk:</strong> ${source.chunk_id ?? "N/A"}</div>
+                                <div class="source-detail"><strong>Page:</strong> ${pages}</div>
+                                <div class="source-detail"><strong>Section:</strong> ${section}</div>
+                            </div>
+                        `;
+                    });
+
+                    sourcesHTML += `
+                            </div>
+                        </div>
+                    `;
+                    sourcesContainer.innerHTML = sourcesHTML;
+                }
+
+                // Smooth scroll down to answer
+                answerContainer.scrollIntoView({ behavior: "smooth", block: "start" });
+
+            } catch (err) {
+                if (err.name === "TypeError" && err.message.includes("fetch")) {
+                    error.textContent = `Unable to connect to the backend server (${API_URL}). Please make sure the backend is running.`;
+                } else {
+                    error.textContent = err.message;
+                }
+                error.classList.add("active");
+            } finally {
+                button.disabled = false;
+                loading.classList.remove("active");
+            }
+        }
+
+        // Keyboard Shortcut: Ctrl + Enter
+        document.getElementById("question").addEventListener("keydown", function (e) {
+            if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                e.preventDefault();
+                askQuestion();
+            }
+        });
+    </script>
+
+</body>
+
+</html>

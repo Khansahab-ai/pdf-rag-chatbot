@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# Environment variables / secrets
+.env
+.env.*
+
+# Jupyter
+.ipynb_checkpoints/
+
+# IDE
+.vscode/
+.idea/
+
+# Git
+.git/
+
+# Local data / generated files
+mineru_output/
+
+# Chroma local database
+chroma_db/
+
+# Hugging Face / ML model caches
+.cache/
+huggingface_cache/
+transformers_cache/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Development notebooks
+*.ipynb
+
+data/document/
+data/processed/
