@@ -5,6 +5,5 @@ __pycache__/
 .gitignore
 .env
 
-frontend/
 mineru_output/
 *.ipynb

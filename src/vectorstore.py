@@ -11,15 +11,10 @@ from embeddings import load_embedding_model
 # CONFIGURATION
 # ============================================================
 
-MINERU_DIR = Path(
-    r"D:\Langchain\pdf_rag_q&a\mineru_output\attention\hybrid_auto"
-)
-
+BASE_DIR = Path(__file__).resolve().parent.parent
+MINERU_DIR = BASE_DIR / "mineru_output" / "attention" / "hybrid_auto"
 INDEX_FILE = MINERU_DIR / "index_documents.json"
-
-CHROMA_DIR = Path(
-    r"D:\Langchain\pdf_rag_q&a\chroma_db"
-)
+CHROMA_DIR = BASE_DIR / "chroma_db"
 
 COLLECTION_NAME = "attention_is_all_you_need"
 

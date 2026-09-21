@@ -585,8 +585,10 @@
     </div>
 
     <script>
-
-        const API_URL = "http://127.0.0.1:8000";
+        // Cloud & Local Dynamic API URL
+        const API_URL = (window.location.protocol.startsWith("http"))
+            ? window.location.origin
+            : "http://127.0.0.1:8000";
 
         // Main Query Function
         async function askQuestion() {

@@ -1,3 +1,13 @@
+---
+title: PDF RAG QA Chatbot
+emoji: 📑
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # 📄 PDF RAG Q&A Chatbot
 
 A production-oriented **Retrieval-Augmented Generation (RAG)** application for asking questions about PDF documents.

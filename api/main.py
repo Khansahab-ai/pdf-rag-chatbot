@@ -1,9 +1,13 @@
+from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from src.llm import load_rag_components, ask_rag
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+FRONTEND_DIR = BASE_DIR / "frontend"
 
 
 app = FastAPI(
@@ -19,6 +23,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.get("/", include_in_schema=False)
+def serve_frontend():
+    index_path = FRONTEND_DIR / "index.html"
+    if index_path.exists():
+        return FileResponse(index_path)
+    return {"message": "Frontend index.html not found"}
 
 print("Loading RAG system...")
 

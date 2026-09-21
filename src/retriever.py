@@ -8,9 +8,8 @@ from src.embeddings import load_embedding_model
 # CONFIGURATION
 # ============================================================
 
-CHROMA_DIR = Path(
-    r"D:\Langchain\pdf_rag_q&a\chroma_db"
-)
+BASE_DIR = Path(__file__).resolve().parent.parent
+CHROMA_DIR = BASE_DIR / "chroma_db"
 
 COLLECTION_NAME = "attention_is_all_you_need"
 
